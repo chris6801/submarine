@@ -44,6 +44,10 @@ class PhysicsEntity(pygame.sprite.Sprite):
         self.state = 'idle'
         self.state_timer = 0
         self.old_state = None
+        self.hit = False
+
+    def get_rect(self):
+        return pygame.Rect(self.x, self.y, TILE_SIZE, TILE_SIZE)    
 
     def update(self):
         # set direction
@@ -92,7 +96,7 @@ class Enemy(PhysicsEntity):
                 elif self.state_timer >= 30:
                     self.dx *= -1
                     self.state_timer = 0
-                self.state_timer += 1
+                self.state_timer += 1    
 
         self.old_state = self.state 
 
@@ -110,6 +114,7 @@ class SonarWave:
         self.color = RED
         self.width = 2
         self.origin = sub
+        self.echo = False
 
     def update(self):
         self.r += 1
@@ -122,11 +127,13 @@ class Torpedo(pygame.sprite.Sprite):
         self.image = load_image("data/sprites/torpedo.png")
         self.x = sub.x
         self.y = sub.y
-        self.dx = 2
         self.dir = sub.dir
+        self.origin = sub
 
-        if sub.flip:
-            self.dx *= -1
+        if sub.dir == 'left':
+            self.dx = -2
+        else:
+            self.dx = 2
 
     def get_rect(self):
         return pygame.Rect(self.x, self.y, 6.0, 3.0)
@@ -137,14 +144,51 @@ class Torpedo(pygame.sprite.Sprite):
     def render(self, surface):
         surface.blit(self.image, (self.x, self.y))
 
+def update_sonar(waves, entities):
+    for wave in waves:
+        wave.update()
+        if wave.r > 200:
+            waves.remove(wave)
+        
+        for enemy in entities:
+            dist = get_distance(wave, enemy)
+            if wave.r >= dist and wave.r <= dist + TILE_SIZE:
+                if enemy.echo == False and wave.origin != enemy and not wave.echo: 
+                    echo = SonarWave(enemy)
+                    waves.append(echo)
+                    enemy.echo = True
+                    echo.echo = True
+                if enemy.echo_timer > 30:
+                    enemy.echo = False
+                    enemy.echo_timer = 0
+
+        wave.render(screen)
+
+def update_torpedos(torpedos, entities):
+    for torpedo in torpedos:
+        torpedo_rect = torpedo.get_rect()
+        torpedo.update()
+        for entity in entities:
+            entity_rect = entity.get_rect()
+            if entity_rect.colliderect(torpedo_rect) and torpedo.origin != entity:
+                print('collision!')
+                entity.state = 'hit'
+        torpedo.render(screen)
+
+def check_hits(entities):
+    for entity in entities:
+        if entity.state == 'hit':
+            entities.remove(entity)
+
+entities = []
+
 player_texture = "data/sprites/sub.png"
 player = Player(player_texture, 200, 200)
 player.image = pygame.transform.scale(player.image, (64, 64))
-
-enemies = []
+entities.append(player)
 enemy_texture = "data/sprites/enemy.png"
-enemy = Enemy(enemy_texture, 300, 200)
-enemies.append(enemy)
+enemy = Enemy(enemy_texture, 300, 200) 
+entities.append(enemy)
 
 sonar_waves = []
 torpedos = []
@@ -190,35 +234,9 @@ while running:
     enemy.update()
     enemy.render(screen)
 
-    for wave in sonar_waves:
-        wave.update()
-        if wave.r > 200:
-            sonar_waves.remove(wave)
-        
-        for enemy in enemies:
-            dist = get_distance(wave, enemy)
-            if wave.r >= dist and wave.r <= dist + TILE_SIZE:
-                if enemy.echo == False and wave.origin != enemy: 
-                    echo = SonarWave(enemy)
-                    sonar_waves.append(echo)
-                    enemy.echo = True
-                if enemy.echo_timer > 30:
-                    enemy.echo = False
-                    enemy.echo_timer = 0
-
-        print(enemy.echo)       
-        wave.render(screen)
-
-    for torpedo in torpedos:
-        torpedo_rect = torpedo.get_rect()
-        torpedo.update()
-        for enemy in enemies:
-            enemy_rect = enemy.get_rect()
-            if enemy_rect.colliderect(torpedo_rect):
-                print('collision!')
-        torpedo.render(screen)
-
-        #print('torpedo: ', torpedo)
+    update_sonar(sonar_waves, entities)
+    update_torpedos(torpedos, entities)
+    check_hits(entities)
 
     pygame.display.flip()
 
