@@ -1,31 +1,38 @@
-#define imported modules
+# define imported modules
 import pygame
 from pygame.locals import *
 import sys
 import time
 import math
 
+# get pygame going
 pygame.init()
 
+# set initial screen width and height
 SCREEN_W, SCREEN_H = 640, 480
 
+# make the screen, the game clock, and a running game loop variable
 screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
 clock = pygame.time.Clock()
 running = True
 
+# define some constants for colors, FPS, and tile size
 BLACK = 0, 0, 0
 RED = 255, 0, 0
 GREEN = 0, 255, 0
 FPS = 60
 TILE_SIZE = 16
 
+# helper function to load images
 def load_image(path):
     image = pygame.image.load(path).convert()
     return image
 
+# helper function for getting an absolute distance between 2D objects
 def get_distance(obj_a, obj_b):
     return math.sqrt((obj_b.x - obj_a.x) ** 2 + (obj_b.y - obj_a.y) ** 2)
 
+# define the base class for physics sprites
 class PhysicsEntity(pygame.sprite.Sprite):
     def __init__(self, texture, xpos, ypos, *args, **kwargs):
         super().__init__()
@@ -46,6 +53,7 @@ class PhysicsEntity(pygame.sprite.Sprite):
         self.old_state = None
         self.hit = False
 
+    # get rect for collisions
     def get_rect(self):
         return pygame.Rect(self.x, self.y, TILE_SIZE, TILE_SIZE)    
 
@@ -68,6 +76,7 @@ class PhysicsEntity(pygame.sprite.Sprite):
         self.y += self.dy
         self.echo_timer += 1    
 
+    # render based on if the sprite is flipped 
     def render(self, surface):
         if self.flip:
             self.image = pygame.transform.flip(self.image, 1, 0)
@@ -87,6 +96,7 @@ class Enemy(PhysicsEntity):
     def update(self):
         super().update()
 
+        # some basic state machine for the enemy with only an idle case
         match self.state:
             case 'idle':
                 if self.state != self.old_state:
